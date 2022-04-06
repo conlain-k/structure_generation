@@ -1,0 +1,8 @@
+numpy 
+dask
+dask[dataframe]
+pymks
+distributed
+natsort
+pyDOE
+h5py
