@@ -7,6 +7,7 @@ import os
 import json
 import h5py
 
+
 seed = 1
 
 num_lhs_params = 4  # how many design params do we have
@@ -19,7 +20,7 @@ lengthscale = ds  # how "large" is one edge of the microstructure
 
 base_dir = "micros"
 
-plot_samp = False
+plot_samp = True
 
 
 def lhs_to_micro(lhs_val):
@@ -55,8 +56,6 @@ def lhs_to_micro(lhs_val):
         seed=seed,
     )
 
-    # print(gx, gy, gz, vf)
-
     # now that we have our microstructure, shape it into a tensor field
     X = X.reshape(-1, ds, ds, ds)
 
@@ -79,50 +78,18 @@ def gen_micros(num_samples):
     # split micros and metas into two lists
     micros, metas = zip(*micro_metas)
 
-    # now convert to numpy arraus
+    # now convert to numpy array
     micros = np.asarray(micros).squeeze().astype("int")
-    metas = np.asarray(metas).squeeze().astype(object)
 
-    return micros, metas
+    # collect metadata into dict of arrays
+    metas_dict = {}
 
+    for k in metas[0].keys():
+        # rip out data for key k from each entry
+        meta_k = [m[k] for m in metas]
+        metas_dict[k] = np.asarray(meta_k)
 
-def save_micros(micros, metadata=None, fbase="paper_micro_full", samples_per_file=200):
-    """Save a set of microstructures, batched in groups of `samples_per_file`
-    This makes it easier to run them through abaqus, etc."""
-    # how many microstructures will we need
-    num_samples = micros.shape[0]
-    # how many files will we split across
-    num_files = np.ceil(num_samples / samples_per_file).astype(int)
-
-    # ensure our target directory actually exists
-    os.makedirs(base_dir, exist_ok=True)
-
-    # split into chunks and save each chunk
-    for i in range(0, num_samples, samples_per_file):
-        print(f"Saving micros {i + 1} to {i+samples_per_file} of {num_samples}")
-        mic_i = micros[i : i + samples_per_file]
-
-        # print(mic_i.shape)
-        fname = f"{base_dir}/{fbase}_{i + 1}.h5"
-        output_f = h5py.File(fname, "w")
-
-        dset = output_f.create_dataset(
-            "micros", data=mic_i, compression="gzip", compression_opts=6, dtype=int
-        )
-        if metadata is not None:
-            met_i = metadata[i : i + samples_per_file]
-            for key in met_i[0].keys():
-                # print(key)
-                met_dat_i_k = np.asarray([m[key] for m in met_i])
-                # print(met_dat_i_k, met_dat_i_k.dtype)
-                dset.attrs.create(name="metadata", data=met_dat_i_k)
-
-            # string dataype to hold our json-ified metadata
-            sdt = h5py.string_dtype(encoding="ascii")
-            # output_f.create_dataset('metadata', data=met_i, compression='gzip', compression_opts=6, dtype=sdt)
-
-        print(f"Saving to {fname}")
-        output_f.close
+    return micros, metas_dict
 
 
 def pretty_print(key, value):
@@ -133,6 +100,34 @@ def pretty_print(key, value):
         return f"{key}:{value:.2f}"
 
 
+def save_micros(micros, metadata, fname):
+    f = h5py.File(fname, "w")
+    dset = f.create_dataset(
+        "micros",
+        data=micros,
+        compression="gzip",
+        compression_opts=6,
+        dtype=int,
+        chunks=(1, ds, ds, ds),
+    )
+
+    print(metadata.keys(), type(metadata.keys()))
+    # use a dataset for the generation params as well
+    for k in metadata.keys():
+        f.create_dataset(name=f"params_{k}", data=metadata[k])
+    dset.attrs.create("ds", data=ds)
+    dset.attrs.create("num_phases", data=2)
+    dset.attrs.create("gen_params", data=list(metadata.keys()))
+
+    print(f)
+    print(f.keys())
+    print(f["micros"].attrs.keys())
+    print(f["micros"].attrs["gen_params"])
+    print(dset.compression)
+    print(dset.compression_opts)
+    print(dset.chunks)
+
+
 def main():
     np.random.seed(0)
 
@@ -140,17 +135,20 @@ def main():
 
     micros, metas = gen_micros(num_samples)
 
-    print(micros.shape, metas.shape)
-    print(micros.dtype, metas.dtype)
+    print(micros.shape)
+    print(micros.dtype)
+    print(metas.keys())
 
     print("Saving microstructures")
-    save_micros(micros, metas, fbase="newdata")
+    # ensure our target directory actually exists
+    os.makedirs(base_dir, exist_ok=True)
+    save_micros(micros, metas, fname=f"{base_dir}/newmicros_ds31.h5")
 
     print("displaying sample of microstructures")
 
     if plot_samp:
-        micros_show = micros[:8]
-        metas_show = metas[:8]
+        show_inds = np.arange(8)
+        micros_show = micros[show_inds]
         # print(micros_show.shape)
         import matplotlib.pyplot as plt
 
@@ -162,16 +160,18 @@ def main():
             axi.set_xlabel("x")
             axi.set_ylabel("y")
 
+            mm_ind = show_inds[i]
+
             # print(metas_show[i])
 
-            metastr = ",".join([pretty_print(k, v) for k, v in metas_show[i].items()])
+            metastr = ",".join(pretty_print(k, metas[k][mm_ind]) for k in metas.keys())
             axi.set_title(metastr)
         fig.suptitle("z=0 slice of sampled microstructures")
         plt.tight_layout()
 
-        gx_vals = sorted(np.array([m["gx"] for m in metas]))
-        gx_vals = sorted(np.array([m["gx"] for m in metas]))
-        vf_vals = sorted(np.array([m["vf"] for m in metas]))
+        gx_vals = sorted(metas["gx"])
+        gx_vals = sorted(metas["gx"])
+        vf_vals = sorted(metas["vf"])
 
         # print(gx_vals)
 

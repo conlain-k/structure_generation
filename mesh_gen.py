@@ -14,7 +14,7 @@ parser.add_argument(
     help="Set the number of elements for each dimension of the mesh",
 )
 parser.add_argument(
-    "-bc_component",
+    "--bc_component",
     default=0,
     type=int,
     choices=[0, 1, 2, 3, 4, 5],
@@ -379,12 +379,14 @@ def generate_abaqus_mesh(ds, applied_strain, bc_component, save_dir=None):
     # ------------- Main File -------------#
 
     with open(os.path.join(save_dir, main_file), "w") as f:
-        f.write("*INCLUDE, INPUT=" + os.path.join(save_dir, node_file) + "\n")
-        f.write("*INCLUDE, INPUT=" + os.path.join(save_dir, element_file) + "\n")
-        f.write("*INCLUDE, INPUT=" + os.path.join(save_dir, nodeset_file) + "\n")
-        f.write("*INCLUDE, INPUT=" + os.path.join(save_dir, bc_nset_file) + "\n")
-        f.write("*INCLUDE, INPUT=" + os.path.join(save_dir, pbc_file) + "\n")
-        f.write("*INCLUDE, INPUT=" + os.path.join(save_dir, step_file) + "\n")
+        f.write("*INCLUDE, INPUT=" + node_file + "\n")
+        f.write("*INCLUDE, INPUT=" + element_file + "\n")
+        f.write("*INCLUDE, INPUT=" + nodeset_file + "\n")
+        f.write("*INCLUDE, INPUT=" + bc_nset_file + "\n")
+        f.write("*INCLUDE, INPUT=" + pbc_file + "\n")
+        f.write("*INCLUDE, INPUT=" + step_file + "\n")
+
+    return os.path.join(save_dir, main_file)
 
 
 if __name__ == "__main__":

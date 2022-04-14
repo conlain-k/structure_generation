@@ -13,14 +13,15 @@ import h5py
 import pathlib
 
 parser = argparse.ArgumentParser(description="Solve linear elasticity via MKS")
+parser.add_argument("--inp_dir", required=True, help="Where to read .inp files from")
+# parser.add_argument("--output_dir", required=True, help="Where to write .dat files to")
 parser.add_argument(
-    "--inp_dir", nargs=1, required=True, help="Where to read .inp files from"
+    "--start_ind", default=0, help="Which inp file to start with (default zero)"
 )
 parser.add_argument(
-    "--output_dir", nargs=1, required=True, help="Where to write .dat files to"
-)
-parser.add_argument(
-    "--voxel_count", nargs=1, required=False, help="How many voxels in each direction?"
+    "--stop_ind",
+    default=0,
+    help="Which inp file to stop before (exclusive, default is -1: run all)",
 )
 
 
@@ -29,6 +30,8 @@ parser.add_argument(
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 
 PARSER_SCR = f"{SCRIPT_DIR}/parseODBToNumpy.py"
+
+OUTPUTS_BASEDIR = "outputs"
 
 
 # suggested by here: https://stackoverflow.com/questions/10840533/most-pythonic-way-to-delete-a-file-which-may-not-exist
@@ -50,7 +53,8 @@ def run_cmd(cmd_args):
     return ret
 
 
-def run_abaqus(jobname, inp_dir, output_dir):
+@dask.delayed
+def run_abaqus(jobname, inp_dir):
     # keep current directory for later
     cwd = os.getcwd()
     # move to input directory
@@ -81,28 +85,40 @@ def run_abaqus(jobname, inp_dir, output_dir):
 
     strain_f = f"{jobname}_strain.npy"
     stress_f = f"{jobname}_stress.npy"
-    displacement_f = f"{jobname}_displacement.npy"
 
     strain_data = np.load(strain_f)
     stress_data = np.load(stress_f)
-    displacement_data = np.load(displacement_f)
 
     # now cleanup those temp files
     os.remove(strain_f)
     os.remove(stress_f)
-    os.remove(displacement_f)
 
-    return strain_data, stress_data, displacement_data
-
-
-@dask.delayed
-def run_abaqus_dask(jobname, inp_dir, output_dir):
-    return run_abaqus(jobname, inp_dir, output_dir)
+    return strain_data, stress_data
 
 
-def run_all_abaqus(inp_dir, output_dir, voxel_count=None):
+def inside_inp_range(inp, start, stop):
+    inp_base = os.path.splitext(inp)[0]
+    if inp_base.isnumeric():
+        inp_num = int(inp_base)
+        print(inp_base, inp_num)
+        if inp_num >= start and inp_num < stop:
+            my_inps.append
+
+
+def main():
+    args = parser.parse_args()
+    # read in args
+    inp_dir = pathlib.Path(args.inp_dir).absolute()
+    # output_dir = pathlib.Path(args.output_dir).absolute()
+    start = args.start_ind
+    stop = args.stop_ind
+    os.makedirs(OUTPUTS_BASEDIR, exist_ok=True)
+
+    # first get all inp files in the directory
     all_inp = glob.glob(f"{inp_dir}/*.inp")
     all_inp = natsorted(all_inp)
+
+    my_inps = [inp for inp in all_inp if inside_inp_range(inp, start, stop)]
 
     print(f"Running total of {len(all_inp)} .inp files!")
 
@@ -114,7 +130,7 @@ def run_all_abaqus(inp_dir, output_dir, voxel_count=None):
         i_file = os.path.basename(i_file)
         # strip off extension
         jobname = os.path.splitext(i_file)[0]
-        res = run_abaqus_dask(jobname, inp_dir, output_dir)
+        res = run_abaqus(jobname, inp_dir)
         results.append(res)
 
     # now actually compute them
@@ -124,7 +140,6 @@ def run_all_abaqus(inp_dir, output_dir, voxel_count=None):
     E, S, U = ret[0:2], ret[2:4], ret[4:6]
     E_vals = np.asarray(E).squeeze()
     S_vals = np.asarray(S).squeeze()
-    U_vals = np.asarray(U).squeeze()
 
     # data = np.asarray(ret)
 
@@ -137,7 +152,7 @@ def run_all_abaqus(inp_dir, output_dir, voxel_count=None):
 
     print("Composite sizes are", E_vals.shape, S_vals.shape, U_vals.shape)
 
-    output_filename = f"{output_dir}/{os.path.basename(inp_dir)}_responses.h5"
+    output_filename = f"{OUTPUTS_BASEDIR}/{os.path.basename(inp_dir)}_responses.h5"
 
     print(f"Writing to big file {output_filename}")
 
@@ -179,14 +194,4 @@ def run_all_abaqus(inp_dir, output_dir, voxel_count=None):
 
 
 if __name__ == "__main__":
-    args = parser.parse_args()
-    # read in args
-    inp_dir = pathlib.Path(args.inp_dir[0]).absolute()
-    output_dir = pathlib.Path(args.output_dir[0]).absolute()
-    os.makedirs(output_dir, exist_ok=True)
-
-    vc = None
-    if args.voxel_count:
-        vc = int(args.voxel_count[0])
-
-    run_all_abaqus(inp_dir, output_dir, vc)
+    main()
