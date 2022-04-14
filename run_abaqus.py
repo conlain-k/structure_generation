@@ -13,16 +13,22 @@ import h5py
 import pathlib
 
 parser = argparse.ArgumentParser(description="Solve linear elasticity via MKS")
-parser.add_argument('--inp_dir', nargs=1, required=True, help='Where to read .inp files from')
-parser.add_argument('--output_dir', nargs=1, required=True, help='Where to write .dat files to')
-parser.add_argument('--voxel_count', nargs=1, required=False, help='How many voxels in each direction?')
+parser.add_argument(
+    "--inp_dir", nargs=1, required=True, help="Where to read .inp files from"
+)
+parser.add_argument(
+    "--output_dir", nargs=1, required=True, help="Where to write .dat files to"
+)
+parser.add_argument(
+    "--voxel_count", nargs=1, required=False, help="How many voxels in each direction?"
+)
 
 
 # TODO this is hacky
 # get current dir to get parser script
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 
-PARSER_SCR = f'{SCRIPT_DIR}/parseODBToNumpy.py'
+PARSER_SCR = f"{SCRIPT_DIR}/parseODBToNumpy.py"
 
 
 # suggested by here: https://stackoverflow.com/questions/10840533/most-pythonic-way-to-delete-a-file-which-may-not-exist
@@ -31,11 +37,12 @@ def silent_remove(filename):
         os.remove(filename)
     except OSError:
         pass
-    
+
+
 def run_cmd(cmd_args):
-    print(f'Command string is: {cmd_args}')
+    print(f"Command string is: {cmd_args}")
     ret = subprocess.Popen(cmd_args).wait()
-    print(f'Return code was: {ret}')
+    print(f"Return code was: {ret}")
     # if we failed, stop now
     if ret != 0:
         raise RuntimeError
@@ -50,21 +57,31 @@ def run_abaqus(jobname, inp_dir, output_dir):
     os.chdir(inp_dir)
 
     # set up abaqus command
-    ab_cmd = ["abaqus", f"job={jobname}.inp"] +  "int double interactive cpus=6 ask_delete=off".split(' ')
+    ab_cmd = [
+        "abaqus",
+        f"job={jobname}.inp",
+    ] + "int double interactive cpus=6 ask_delete=off".split(" ")
     run_cmd(ab_cmd)
 
     # otherwise try and parse
-    parse_args = ['abaqus', 'python', f'{PARSER_SCR}', '--', f'{jobname}.odb', f'{jobname}']
+    parse_args = [
+        "abaqus",
+        "python",
+        f"{PARSER_SCR}",
+        "--",
+        f"{jobname}.odb",
+        f"{jobname}",
+    ]
     run_cmd(parse_args)
 
-    #Now that we parsed, do some cleanup    
+    # Now that we parsed, do some cleanup
     rm_ext = ["msg", "sim", "com", "prt", "odb", "sta", "dat"]
     for ext in rm_ext:
         silent_remove(f"{jobname}.{ext}")
 
-    strain_f = f'{jobname}_strain.npy'
-    stress_f = f'{jobname}_stress.npy'
-    displacement_f = f'{jobname}_displacement.npy'
+    strain_f = f"{jobname}_strain.npy"
+    stress_f = f"{jobname}_stress.npy"
+    displacement_f = f"{jobname}_displacement.npy"
 
     strain_data = np.load(strain_f)
     stress_data = np.load(stress_f)
@@ -77,9 +94,11 @@ def run_abaqus(jobname, inp_dir, output_dir):
 
     return strain_data, stress_data, displacement_data
 
+
 @dask.delayed
 def run_abaqus_dask(jobname, inp_dir, output_dir):
     return run_abaqus(jobname, inp_dir, output_dir)
+
 
 def run_all_abaqus(inp_dir, output_dir, voxel_count=None):
     all_inp = glob.glob(f"{inp_dir}/*.inp")
@@ -99,31 +118,30 @@ def run_all_abaqus(inp_dir, output_dir, voxel_count=None):
         results.append(res)
 
     # now actually compute them
-    #E_vals, S_vals
+    # E_vals, S_vals
     ret = dask.compute(results, num_workers=1)
 
     E, S, U = ret[0:2], ret[2:4], ret[4:6]
     E_vals = np.asarray(E).squeeze()
     S_vals = np.asarray(S).squeeze()
     U_vals = np.asarray(U).squeeze()
-    
 
-    #data = np.asarray(ret)
+    # data = np.asarray(ret)
 
-    #print(data.shape)
+    # print(data.shape)
 
     # dask added some extra dims that we should get rid of
-    #data = data.squeeze(axis=(0))
-    
-    #E_vals, S_vals, U_vals = data[:, 0], data[:, 1], data[:,2]
+    # data = data.squeeze(axis=(0))
+
+    # E_vals, S_vals, U_vals = data[:, 0], data[:, 1], data[:,2]
 
     print("Composite sizes are", E_vals.shape, S_vals.shape, U_vals.shape)
 
-    output_filename=f"{output_dir}/{os.path.basename(inp_dir)}_responses.h5"
+    output_filename = f"{output_dir}/{os.path.basename(inp_dir)}_responses.h5"
 
     print(f"Writing to big file {output_filename}")
 
-    output_f = h5py.File(output_filename, 'w')
+    output_f = h5py.File(output_filename, "w")
 
     chunk_size = (1,) + E_vals.shape[1:]
     print("chunk size is", chunk_size)
@@ -131,9 +149,34 @@ def run_all_abaqus(inp_dir, output_dir, voxel_count=None):
     print(S_vals.dtype)
     print(U_vals.dtype)
 
-    output_f.create_dataset('strain', data=E_vals, chunks = chunk_size, dtype=E_vals.dtype, compression='gzip', compression_opts=6, maxshape=(None,) + E_vals.shape[1:])
-    output_f.create_dataset('stress', data=S_vals, chunks = chunk_size, dtype=S_vals.dtype, compression='gzip', compression_opts=6, maxshape=(None,) + S_vals.shape[1:])
-    output_f.create_dataset('displacement', data=U_vals, chunks = chunk_size, dtype=U_vals.dtype, compression='gzip', compression_opts=6, maxshape=(None,) + U_vals.shape[1:])
+    output_f.create_dataset(
+        "strain",
+        data=E_vals,
+        chunks=chunk_size,
+        dtype=E_vals.dtype,
+        compression="gzip",
+        compression_opts=6,
+        maxshape=(None,) + E_vals.shape[1:],
+    )
+    output_f.create_dataset(
+        "stress",
+        data=S_vals,
+        chunks=chunk_size,
+        dtype=S_vals.dtype,
+        compression="gzip",
+        compression_opts=6,
+        maxshape=(None,) + S_vals.shape[1:],
+    )
+    output_f.create_dataset(
+        "displacement",
+        data=U_vals,
+        chunks=chunk_size,
+        dtype=U_vals.dtype,
+        compression="gzip",
+        compression_opts=6,
+        maxshape=(None,) + U_vals.shape[1:],
+    )
+
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -145,6 +188,5 @@ if __name__ == "__main__":
     vc = None
     if args.voxel_count:
         vc = int(args.voxel_count[0])
-
 
     run_all_abaqus(inp_dir, output_dir, vc)
