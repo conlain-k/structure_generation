@@ -5,6 +5,9 @@ outputs
 sandbox
 *.out
 
+# don't add generated files by default
+*.h5 
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

@@ -20,9 +20,9 @@ num_batch=$(ceildiv $num_inps $num_per_batch)
 echo "num_batch", $num_batch
 
 # now loop over all batches and submit to the cluster
-for ((batch=1; batch<=$num_batch; batch++))
+for ((batch=0; batch<$num_batch; batch++))
 do
-    lo=$(($batch * $num_per_batch + 1))
+    lo=$(($batch * $num_per_batch))
     hi=$(($lo + $num_per_batch))
     cmd="qsub run_abaqus_micros.pbs -F '${inp_dir} ${lo} ${hi}'"
     echo $cmd

@@ -67,7 +67,7 @@ def run_abaqus(jobname, inp_dir):
     ab_cmd = [
         "abaqus",
         f"job={jobname}.inp",
-    ] + "int double interactive cpus=6 ask_delete=off".split(" ")
+    ] + "int double interactive cpus=8 ask_delete=off".split(" ")
     run_cmd(ab_cmd)
 
     # otherwise try and parse
@@ -146,15 +146,16 @@ def main():
     # now actually compute them
     # E_vals, S_vals
     ret = dask.compute(results, num_workers=1)
+    ret = np.asarray(ret)
 
     # [instance, stress/strain, component, x, y, z]
     target_shape = (-1, 2, 6) + ret.shape[-3:]
-    ret = np.asarray(ret).reshape(target_shape)
+    ret = ret.reshape(target_shape)
 
     print(ret.shape)
 
     # split into strain and stress fields for each [instance, component, x, y, z] slice
-    E, S = ret[:, 0], ret[:, 1]
+    E_vals, S_vals = ret[:, 0], ret[:, 1]
 
     # what shape do we want our fields to be in?
     print("Composite sizes are", E_vals.shape, S_vals.shape)
