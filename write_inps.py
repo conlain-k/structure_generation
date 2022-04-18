@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import sys
 import os
 import numpy as np
@@ -8,7 +9,9 @@ import argparse
 from mesh_gen import generate_abaqus_mesh
 
 
-parser = argparse.ArgumentParser(description="Solve linear elasticity via MKS")
+parser = argparse.ArgumentParser(
+    description="Convert a set of microstructures into a directory full of inp files"
+)
 parser.add_argument(
     "--micro_file", required=True, help="What microstructure file to read in"
 )
@@ -25,6 +28,7 @@ parser.add_argument(
     type=int,
     help="Set the number of elements for each dimension of the mesh",
 )
+
 parser.add_argument(
     "--bc_component",
     default=0,
@@ -39,7 +43,7 @@ parser.add_argument(
     help="Magnitude of the imposed strain",
 )
 
-allow_skip = True
+allow_skip = False
 
 stiffnessLow = 100
 
@@ -95,7 +99,7 @@ def make_elsetstr(micro):
             ",".join(str(a) for a in arr[i : i + 10]) for i in range(0, arr.size, 10)
         ]
         lines = "\n".join(spl)
-        sleep(0.1)
+        # sleep(0.1)
         return lines
 
     # soft material set
@@ -133,7 +137,7 @@ def write_inp(micro, inp_name, matstr, mesh_main_file):
         f.write(matstr)
 
         # now copy mesh main data
-        f.write(mesh_main_file)
+        f.write(mesh_main_str)
 
         # finally copy element set
         f.write(elset_str)
@@ -141,6 +145,7 @@ def write_inp(micro, inp_name, matstr, mesh_main_file):
 
 def main():
     args = parser.parse_args()
+
     # read in args
     micro_file = args.micro_file
     bc_component = args.bc_component
@@ -166,7 +171,7 @@ def main():
     micro_base = os.path.basename(micro_file)
     # now strip out extension
     inp_base = os.path.splitext(micro_base)[0]
-    inps_dir = f"{INP_BASEDIR}/{inp_base}_cr{contrast_ratio}"
+    inps_dir = f"{INP_BASEDIR}/{inp_base}_cr{contrast_ratio}_bc{bc_component}"
 
     os.makedirs(INP_BASEDIR, exist_ok=True)
     os.makedirs(inps_dir, exist_ok=True)

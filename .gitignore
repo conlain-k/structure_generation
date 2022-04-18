@@ -2,6 +2,8 @@
 inputs
 micros
 outputs
+sandbox
+*.out
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

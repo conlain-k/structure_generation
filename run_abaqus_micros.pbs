@@ -1,0 +1,23 @@
+#PBS -N microset               # job name
+#PBS -l nodes=1:ppn=8 #16           # number of nodes and cores per node required
+#PBS -l pmem=8gb                # memory per core
+#PBS -l walltime=4:00:00          # duration of the job (ex: 15 min)
+#PBS -q hive-sas #-nvme                # queue name (where job is submitted)
+#PBS -j oe                      # combine output and error messages into 1 file
+#PBS -m n
+#PBS -o pbs_out/${PBS_JOBID}.out   # output file name, may want to change
+
+inp_dir=$1
+start_ind=$2
+stop_ind=$3
+
+module load abaqus
+source $PBS_O_WORKDIR/sandbox/bin/activate
+
+cd $PBS_O_WORKDIR
+
+pwd
+
+# run abaqus on the given inputs
+cmd="python3 run_abaqus.py --i ${inp_dir} --start ${start_ind} --stop ${stop_ind}"
+echo $cmd; $cmd

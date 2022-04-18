@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from pyDOE import lhs
 from pymks.datasets import make_microstructure
 import numpy as np
@@ -11,7 +13,7 @@ import h5py
 seed = 1
 
 num_lhs_params = 4  # how many design params do we have
-num_samples = 1000
+num_samples = 50  # 1000
 
 # how often to print an update
 pf = max(num_samples // 10, 1)
