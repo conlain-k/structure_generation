@@ -1,7 +1,7 @@
 from odbAccess import *
 from abaqusConstants import *
 import numpy as np
-import os, sys
+import sys
 
 
 # usage 'abaqus cae noGUI=avg_SE_RF.py -- <odb_file_path> <output_file_base>
@@ -28,13 +28,11 @@ vc = int(round(num_elems ** (1.0 / 3)))
 
 print("Inferred voxel count is", vc)
 
-E_arr = E_arr.reshape(-1, vc, vc, vc)
-S_arr = S_arr.reshape(-1, vc, vc, vc)
+# 1 instance times 6 components times [x, y, z]
+E_arr = E_arr.reshape(1, -1, vc, vc, vc)
+S_arr = S_arr.reshape(1, -1, vc, vc, vc)
 
-print(E_arr.shape)
-print(S_arr.shape)
-
-print("Saving to file base", output_file_base)
+print("Saving to numpy file base", output_file_base)
 
 strain_file = "{}_strain.npy".format(output_file_base)
 stress_file = "{}_stress.npy".format(output_file_base)

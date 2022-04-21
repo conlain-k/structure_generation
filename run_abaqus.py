@@ -39,6 +39,34 @@ PARSER_SCR = f"{SCRIPT_DIR}/parseODBToNumpy.py"
 OUTPUTS_BASEDIR = "outputs"
 
 
+def write_results(fname, strain, stress):
+    output_f = h5py.File(fname, "w")
+
+    # one chunk for each instance
+    chunk_size = (1,) + strain[0].shape
+    print("chunk size is", chunk_size)
+    print(strain.dtype, strain.shape)
+    print(stress.dtype, stress.shape)
+
+    # now make the actual datasets
+    output_f.create_dataset(
+        "strain",
+        data=strain,
+        dtype=strain.dtype,
+        compression="gzip",
+        compression_opts=6,
+        chunks=chunk_size,
+    )
+    output_f.create_dataset(
+        "stress",
+        data=stress,
+        dtype=stress.dtype,
+        compression="gzip",
+        compression_opts=6,
+        chunks=chunk_size,
+    )
+
+
 # suggested by here: https://stackoverflow.com/questions/10840533/most-pythonic-way-to-delete-a-file-which-may-not-exist
 def silent_remove(filename):
     try:
@@ -59,7 +87,7 @@ def run_cmd(cmd_args):
 
 
 @dask.delayed
-def run_abaqus(jobname, inp_dir):
+def run_abaqus(jobname, inp_dir, output_dir_abs):
     # move to input directory
     os.chdir(inp_dir)
 
@@ -92,6 +120,10 @@ def run_abaqus(jobname, inp_dir):
     strain_data = np.load(strain_f)
     stress_data = np.load(stress_f)
 
+    output_file = f"{output_dir_abs}/{jobname}.h5"
+    print(f"Saving results for job {jobname} to file {output_file}")
+    write_results(output_file, strain_data, stress_data)
+
     # now cleanup those temp files
     os.remove(strain_f)
     os.remove(stress_f)
@@ -115,10 +147,14 @@ def main():
     inp_dir = pathlib.Path(args.inp_dir).absolute()
     start = args.start_ind
     stop = args.stop_ind
-    os.makedirs(OUTPUTS_BASEDIR, exist_ok=True)
 
-    output_filename = f"{OUTPUTS_BASEDIR}/{os.path.basename(inp_dir)}_responses.h5"
-    output_filename = pathlib.Path(output_filename).absolute()
+    # now set up target directories
+    output_dir = f"{OUTPUTS_BASEDIR}/{os.path.basename(inp_dir)}"
+    # get absolute path for when we change directories later
+    output_dir_abs = pathlib.Path(output_dir).absolute()
+
+    os.makedirs(OUTPUTS_BASEDIR, exist_ok=True)
+    os.makedirs(output_dir, exist_ok=True)
 
     # first get all inp files in the directory
     all_inp = glob.glob(f"{inp_dir}/*.inp")
@@ -140,53 +176,13 @@ def main():
         i_file = os.path.basename(i_file)
         # strip off extension
         jobname = os.path.splitext(i_file)[0]
-        res = run_abaqus(jobname, inp_dir)
+        res = run_abaqus(jobname, inp_dir, output_dir_abs)
         results.append(res)
 
     # now actually compute them
     # E_vals, S_vals
     ret = dask.compute(results, num_workers=1)
     ret = np.asarray(ret)
-
-    # [instance, stress/strain, component, x, y, z]
-    target_shape = (-1, 2, 6) + ret.shape[-3:]
-    ret = ret.reshape(target_shape)
-
-    print(ret.shape)
-
-    # split into strain and stress fields for each [instance, component, x, y, z] slice
-    E_vals, S_vals = ret[:, 0], ret[:, 1]
-
-    # what shape do we want our fields to be in?
-    print("Composite sizes are", E_vals.shape, S_vals.shape)
-
-    print(f"Writing to big file {output_filename}")
-
-    output_f = h5py.File(output_filename, "w")
-
-    chunk_size = (1,) + E_vals.shape[1:]
-    print("chunk size is", chunk_size)
-    print(E_vals.dtype)
-    print(S_vals.dtype)
-
-    output_f.create_dataset(
-        "strain",
-        data=E_vals,
-        chunks=chunk_size,
-        dtype=E_vals.dtype,
-        compression="gzip",
-        compression_opts=6,
-        maxshape=(None,) + E_vals.shape[1:],
-    )
-    output_f.create_dataset(
-        "stress",
-        data=S_vals,
-        chunks=chunk_size,
-        dtype=S_vals.dtype,
-        compression="gzip",
-        compression_opts=6,
-        maxshape=(None,) + S_vals.shape[1:],
-    )
 
 
 if __name__ == "__main__":

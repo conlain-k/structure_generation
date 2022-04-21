@@ -5,10 +5,14 @@ from pymks.datasets import make_microstructure
 import numpy as np
 
 import os
+import argparse
 
 import json
 import h5py
 
+
+parser = argparse.ArgumentParser(description="Solve linear elasticity via MKS")
+parser.add_argument("--output_name", required=True, help="What file to write to")
 
 seed = 1
 
@@ -133,6 +137,9 @@ def save_micros(micros, metadata, fname):
 def main():
     np.random.seed(0)
 
+    args = parser.parse_args()
+    output_name = args.output_name
+
     print(f"Generating {num_samples} LHS points!")
 
     micros, metas = gen_micros(num_samples)
@@ -144,7 +151,7 @@ def main():
     print("Saving microstructures")
     # ensure our target directory actually exists
     os.makedirs(base_dir, exist_ok=True)
-    save_micros(micros, metas, fname=f"{base_dir}/newmicros_ds31.h5")
+    save_micros(micros, metas, fname=f"{base_dir}/{output_name}.h5")
 
     print("displaying sample of microstructures")
 

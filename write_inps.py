@@ -43,7 +43,7 @@ parser.add_argument(
     help="Magnitude of the imposed strain",
 )
 
-allow_skip = False
+allow_skip = True
 
 stiffnessLow = 100
 
@@ -171,6 +171,12 @@ def main():
     micro_base = os.path.basename(micro_file)
     # now strip out extension
     inp_base = os.path.splitext(micro_base)[0]
+
+    # does our directory end in "_micros" ?
+    if inp_base.split("_")[-1].lower() == "micros":
+        # cut off "_micros" if we can
+        inp_base = inp_base[:-7]
+
     inps_dir = f"{INP_BASEDIR}/{inp_base}_cr{contrast_ratio}_bc{bc_component}"
 
     os.makedirs(INP_BASEDIR, exist_ok=True)

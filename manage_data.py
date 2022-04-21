@@ -14,6 +14,7 @@ parser = argparse.ArgumentParser(description="Solve linear elasticity via MKS")
 
 group = parser.add_mutually_exclusive_group()
 group.add_argument("--split_micros", help="Split a given microstructure file")
+group.add_argument("--concat_files_dir", help="Directory full of files to concatenate")
 
 
 def split_micros_file(micros_fname, samples_per_file=200):
@@ -67,26 +68,33 @@ def split_micros_file(micros_fname, samples_per_file=200):
         output_f.close()
 
 
-def concat_files(basename, output_file, keys):
-    allDats = glob.glob(basename + "*.h5")
+def concat_files(basename, output_file):
+    allDats = glob.glob(basename + "/*.h5")
     allDats = natsorted(allDats)
 
-    print(allDats)
+    print(f"{len(allDats)} files total!")
     print(basename + "*.h5")
 
     big_file = h5py.File(output_file, "w")
 
-    old_size = None
+    pf = max(1, (len(allDats) // 100))
 
-    for file_i in allDats:
-        print(file_i)
+    # loop over every file we have
+    for ind, file_i in enumerate(allDats[:]):
+        # print 20 times total
+        if ind % pf == 0:
+            print(file_i)
         data_i = h5py.File(file_i, "r")
-        for key in keys:
+        # loop over every key in the file
+        for key in data_i.keys():
             curr_dataset = data_i.get(key, None)
+            # if we have that data, write it to the big file
             if curr_dataset is not None:
+                # does the big file already have that data?
                 if big_file.get(key) is None:
                     chunk_size = (1,) + curr_dataset.shape[1:]
                     # make new dataset for this
+                    # allow resizing for now
                     big_file.create_dataset(
                         key,
                         shape=curr_dataset.shape,
@@ -96,19 +104,26 @@ def concat_files(basename, output_file, keys):
                         maxshape=(None,) + curr_dataset.shape[1:],
                         chunks=chunk_size,
                     )
-                    print(key, big_file[key].chunks)
+                    print(f"Making dataset {key}, chunk size is {big_file[key].chunks}")
                     big_file[key][:] = curr_dataset[:]
                 else:
+                    # if the big file already has a set, where should we start and stop writing?
                     offset = big_file[key].shape[0]
                     added_size = curr_dataset.shape[0]
+                    # make space for new data
                     big_file[key].resize(offset + added_size, axis=0)
+                    # add new data
                     big_file[key][offset:] = curr_dataset[:]
-            print("new size:", big_file[key].shape)
+
+            if ind % pf:
+                print(f"Datset {key} new size: {big_file[key].shape}")
         data_i.close()
 
     # the dataset was previously unlimited in size, so we should reset that now
-    for key in keys:
-        print(f"Reformatting {key}")
+    for key in big_file.keys():
+        print(
+            f"Reformatting {key}, size is {big_file[key].shape}, chunks is {big_file[key].chunks}"
+        )
         data = big_file[key][:]  # load in all data (expensive!)
         chunks = big_file[key].chunks
         del big_file[key]
@@ -122,11 +137,19 @@ def main():
     args = parser.parse_args()
 
     print(args)
+    # either split a micro file
     if args.split_micros:
         print(args.split_micros)
         micro_file = args.split_micros
 
         split_micros_file(micro_file, samples_per_file=200)
+
+    # or concatenate other structures
+    elif args.concat_files_dir:
+        print(args.concat_files_dir)
+        concat_dir = args.concat_files_dir
+
+        concat_files(concat_dir, f"{concat_dir}_responses.h5")
 
     # basename = sys.argv[1]
 
