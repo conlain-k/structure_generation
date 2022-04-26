@@ -43,9 +43,9 @@ parser.add_argument(
     help="Magnitude of the imposed strain",
 )
 
-allow_skip = True
+allow_skip = False
 
-stiffnessLow = 100
+stiffnessLow = 120
 
 INP_BASEDIR = "inputs"
 
@@ -82,6 +82,7 @@ def make_elsetstr(micro):
     mf = micro.ravel()
 
     # add one because elements are one-based in abaqus
+    # zero means soft phase, 1 means hard phase
     m1 = np.isclose(mf, 0).nonzero()[0] + 1
     m2 = np.isclose(mf, 1).nonzero()[0] + 1
 

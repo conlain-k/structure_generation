@@ -13,18 +13,27 @@ import h5py
 
 parser = argparse.ArgumentParser(description="Solve linear elasticity via MKS")
 parser.add_argument("--output_name", required=True, help="What file to write to")
+parser.add_argument(
+    "--num_samples",
+    type=int,
+    default=50,
+    help="How many samples to generate via LHS",
+)
+
 
 seed = 1
 
 num_lhs_params = 4  # how many design params do we have
-num_samples = 50  # 1000
 
 # how often to print an update
-pf = max(num_samples // 10, 1)
+pf = 5
 ds = 31  # number of voxels in one edge of the micro: total voxel count is ds^3
-lengthscale = ds  # how "large" is one edge of the microstructure
-
-base_dir = "micros"
+lengthscale = (
+    ds  # how "large" is one edge of the microstructure (effectively the max grain size)
+)
+lengthscale = (
+    ds  # how "large" is one edge of the microstructure (effectively the max grain size)
+)
 
 plot_samp = True
 
@@ -47,10 +56,11 @@ def lhs_to_micro(lhs_val):
 
     # use different seed each time
     global seed
-    seed += 1
 
     if seed % pf == 0:
-        print(f"Generating structure {seed} of {num_samples}")
+        print(f"Generating structure {seed}")
+
+    seed += 1
 
     # IMPORTANT: pass the seed into the generator
     X = make_microstructure(
@@ -140,6 +150,10 @@ def main():
     args = parser.parse_args()
     output_name = args.output_name
 
+    global pf
+    num_samples = args.num_samples
+    pf = max(num_samples // 50, 1)
+
     print(f"Generating {num_samples} LHS points!")
 
     micros, metas = gen_micros(num_samples)
@@ -150,8 +164,7 @@ def main():
 
     print("Saving microstructures")
     # ensure our target directory actually exists
-    os.makedirs(base_dir, exist_ok=True)
-    save_micros(micros, metas, fname=f"{base_dir}/{output_name}.h5")
+    save_micros(micros, metas, fname=output_name)
 
     print("displaying sample of microstructures")
 

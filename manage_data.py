@@ -115,7 +115,7 @@ def concat_files(basename, output_file):
                     # add new data
                     big_file[key][offset:] = curr_dataset[:]
 
-            if ind % pf:
+            if ind % pf == 0:
                 print(f"Datset {key} new size: {big_file[key].shape}")
         data_i.close()
 
