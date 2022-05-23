@@ -20,5 +20,5 @@ cd $PBS_O_WORKDIR
 pwd
 
 # run abaqus on the given inputs
-cmd="python3 launch_abaqus.py --i ${inp_dir}"
+cmd="python3 launch_abaqus.py ${inp_dir}"
 echo $cmd; $cmd
