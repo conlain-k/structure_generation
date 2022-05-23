@@ -10,13 +10,18 @@ JOB_ID = os.environ.get("PBS_JOBID", "head")
 NUM_CORES = 8
 
 inp_dir = sys.argv[1]
+# remove trailing slashes
+inp_dir = inp_dir.rstrip("/")
+print(inp_dir)
 jobfile = f"run_abaqus_pylauncher_{JOB_ID}.job"
 
 
 # get all inps
 globstr = f"{inp_dir}/*.inp"
 # now filter for solely numeric ones
-restr = f"{inp_dir}/[0-9]+.inp"
+restr = f"{inp_dir}/[0-9]*.inp"
+
+print(restr, globstr)
 
 # get all numeric inps in directory
 all_inps = glob.glob(globstr)
@@ -25,7 +30,7 @@ all_inps = filter(re.compile(restr).match, all_inps)
 all_inps = natsorted(all_inps)
 # all_inps = all_inps[:10]
 
-# print(all_inps)
+print(len(all_inps))
 job_lines = "\n".join(
     f"{NUM_CORES}, python3 run_abaqus.py --inp_dir {inp_dir} --inp_name {inp_name} --num_cores {NUM_CORES}"
     for inp_name in all_inps

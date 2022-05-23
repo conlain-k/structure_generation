@@ -1,5 +1,5 @@
 #PBS -N abaqus_gen                  # job name
-#PBS -l nodes=1:ppn=8 #16           # number of nodes and cores per node required
+#PBS -l nodes=20:ppn=8 #16           # number of nodes and cores per node required
 #PBS -l pmem=8gb                    # memory per core
 #PBS -l walltime=4:00:00            # duration of the job (ex: 15 min)
 #PBS -q hive-nvme-sas #-nvme             # queue name (where job is submitted)
@@ -12,6 +12,7 @@ start_ind=$2
 stop_ind=$3
 
 module load abaqus
+module load pylauncher
 source $PBS_O_WORKDIR/sandbox/bin/activate
 
 cd $PBS_O_WORKDIR
