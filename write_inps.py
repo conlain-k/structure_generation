@@ -79,19 +79,21 @@ def make_matstr(cr):
 
 def make_elsetstr(micro):
     """convert a microstructure into a set of element phase assignments in string form"""
+    # make sure we have an indicator function and not phase ids
+    # print(micro.shape, micro.ndim)
+    assert micro.ndim == 4
 
-    # if we have phase ids too
-    if micro.ndim == 4:
-        # get phase 0 ids only (since phase id matches phase 1 indicator)
-        micro = micro[0]
-    mf = micro.ravel()
+    # now flatten space dimensions
+    micro = micro.reshape(2, -1)
 
     # add one because elements are one-based in abaqus
     # zero means soft phase, 1 means hard phase
-    m1 = np.isclose(mf, 0).nonzero()[0] + 1
-    m2 = np.isclose(mf, 1).nonzero()[0] + 1
+    # now find which elements are which phase
+    m1 = np.nonzero(micro[0])[0] + 1
+    m2 = np.nonzero(micro[1])[0] + 1
 
-    print(mf.shape, micro.shape)
+    # print(m1.shape, m2.shape, micro.shape)
+
     from time import sleep
 
     def arr_to_str(arr):
