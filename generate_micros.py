@@ -21,21 +21,41 @@ parser.add_argument(
 )
 
 
+# what seed to start wth (will be incremented during runtime)
 seed = 1
 
-num_lhs_params = 4  # how many design params do we have
+# how many design params do we have
+num_lhs_params = 4
 
 # how often to print an update
 pf = 5
-ds = 31  # number of voxels in one edge of the micro: total voxel count is ds^3
-lengthscale = (
-    ds  # how "large" is one edge of the microstructure (effectively the max grain size)
-)
-lengthscale = (
-    ds  # how "large" is one edge of the microstructure (effectively the max grain size)
-)
+# number of voxels in one edge of the micro: total voxel count is ds^3
+ds = 31
+# how "large" is one edge of the microstructure (effectively the max grain size)
+lengthscale = ds
+
+### NOTE that we are hard-coded for 2-phases, future work could easily extend this
 
 plot_samp = True
+
+
+def phaseid_to_indicator(X_phases):
+    # assumes X_phases is an array of shape [num_samples, dx ,dy ,dz]
+    # get array for each phase across all samples
+    X_tmp = np.zeros(
+        (2,) + X_phases.shape,
+    )
+    for i in range(2):
+        # get mask for where we have phase id i
+        mask_i = X_phases == i
+        # assign 1 if we are phase i at that location
+        X_tmp[i][mask_i] = 1
+
+    # swap channels 0 and 1 (phase id and sample id)
+    X = X_tmp.transpose(1, 0, 2, 3, 4)
+    # now X has shape [samp_id, phase_id, dx, dy, dz]
+
+    return X
 
 
 def lhs_to_micro(lhs_val):
@@ -50,7 +70,6 @@ def lhs_to_micro(lhs_val):
     gy = np.int32(np.ceil(gy * lengthscale))
     gz = np.int32(np.ceil(gz * lengthscale))
     vf = np.float32(vf)  # convert to 32-bit float for storage purposes
-    # vf = round(vf, 4) # round volume fraction
 
     vf = (vf, 1 - vf)
 
@@ -63,7 +82,7 @@ def lhs_to_micro(lhs_val):
     seed += 1
 
     # IMPORTANT: pass the seed into the generator
-    X = make_microstructure(
+    X_phases = make_microstructure(
         n_samples=1,
         size=(ds, ds, ds),
         n_phases=2,
@@ -72,8 +91,8 @@ def lhs_to_micro(lhs_val):
         seed=seed,
     )
 
-    # now that we have our microstructure, shape it into a tensor field
-    X = X.reshape(-1, ds, ds, ds)
+    X = phaseid_to_indicator(X_phases)
+    # print(X_phases.shape, X.shape)
 
     # dictionary for metadata
     metadata = {"gx": gx, "gy": gy, "gz": gz, "vf": vf[0]}
@@ -124,7 +143,7 @@ def save_micros(micros, metadata, fname):
         compression="gzip",
         compression_opts=6,
         dtype=int,
-        chunks=(1, ds, ds, ds),
+        chunks=(1, 2, ds, ds, ds),
     )
 
     print(metadata.keys(), type(metadata.keys()))
@@ -177,7 +196,7 @@ def main():
         fig, ax = plt.subplots(2, 4, figsize=(12, 8))
         for i in range(8):
             axi = ax.ravel()[i]
-            axi.imshow(micros_show[i, :, :, 0].T, origin="lower")
+            axi.imshow(micros_show[i, 0, :, :, 0].T, origin="lower")
             # print(micros_show[i].shape)
             axi.set_xlabel("x")
             axi.set_ylabel("y")
@@ -188,7 +207,7 @@ def main():
 
             metastr = ",".join(pretty_print(k, metas[k][mm_ind]) for k in metas.keys())
             axi.set_title(metastr)
-        fig.suptitle("z=0 slice of sampled microstructures")
+        fig.suptitle("z=0 slice of sampled microstructures, phase 0 indicator")
         plt.tight_layout()
 
         gx_vals = sorted(metas["gx"])

@@ -3,11 +3,7 @@ import sys
 import os
 import subprocess
 import numpy as np
-from dask.distributed import Client, LocalCluster
-import dask
-import glob
 import argparse
-from natsort import natsorted
 
 import h5py
 
@@ -15,19 +11,11 @@ import pathlib
 
 parser = argparse.ArgumentParser(description="Solve linear elasticity via MKS")
 parser.add_argument("--inp_dir", required=True, help="Where to read .inp files from")
+parser.add_argument("--inp_name", required=True, help="Which inp to run in that dir?")
+parser.add_argument(
+    "--num_cores", required=True, help="How many cores to run on?", type=int
+)
 # parser.add_argument("--output_dir", required=True, help="Where to write .dat files to")
-parser.add_argument(
-    "--start_ind",
-    default=0,
-    type=int,
-    help="Which inp file to start with (default zero)",
-)
-parser.add_argument(
-    "--stop_ind",
-    default=sys.maxsize,
-    type=int,
-    help="Which inp file to stop before (exclusive, default is run all)",
-)
 
 
 # TODO this is hacky
@@ -81,13 +69,12 @@ def run_cmd(cmd_args):
     print(f"Return code was: {ret}")
     # if we failed, stop now
     if ret != 0:
-        raise RuntimeError
+        raise RuntimeError("Abaqus failed with return code {ret}!")
 
     return ret
 
 
-@dask.delayed
-def run_abaqus(jobname, inp_dir, output_dir_abs):
+def run_abaqus(jobname, inp_dir, output_dir_abs, num_cores):
     # move to input directory
     os.chdir(inp_dir)
 
@@ -95,10 +82,10 @@ def run_abaqus(jobname, inp_dir, output_dir_abs):
     ab_cmd = [
         "abaqus",
         f"job={jobname}.inp",
-    ] + "int double interactive cpus=8 ask_delete=off".split(" ")
+    ] + f"int double interactive cpus={num_cores} ask_delete=off".split(" ")
     run_cmd(ab_cmd)
 
-    # otherwise try and parse
+    # if we haven't failed yet, try and parse
     parse_args = [
         "abaqus",
         "python",
@@ -145,8 +132,7 @@ def main():
     args = parser.parse_args()
     # read in args
     inp_dir = pathlib.Path(args.inp_dir).absolute()
-    start = args.start_ind
-    stop = args.stop_ind
+    inp_name = args.inp_name
 
     # now set up target directories
     output_dir = f"{OUTPUTS_BASEDIR}/{os.path.basename(inp_dir)}"
@@ -156,33 +142,18 @@ def main():
     os.makedirs(OUTPUTS_BASEDIR, exist_ok=True)
     os.makedirs(output_dir, exist_ok=True)
 
-    # first get all inp files in the directory
-    all_inp = glob.glob(f"{inp_dir}/*.inp")
-    all_inp = natsorted(all_inp)
+    # rip out extension to make later parsing easier
+    jobname = os.path.splitext(os.path.basename(inp_name))[0]
+    print(f"Running inp {inp_name} in directory {inp_dir}, jobname is {jobname}!")
 
-    all_inp = [inp for inp in all_inp if inside_inp_range(inp, start, stop)]
+    # now actually run things through abaqus
+    ret = run_abaqus(jobname, inp_dir, output_dir_abs, num_cores=args.num_cores)
 
-    num_inps = len(all_inp)
+    # all the postprocessing should already be done!
 
-    print(all_inp)
-
-    print(f"Running total of {len(all_inp)} .inp files!")
-
-    results = []
-
-    # set up array of dask jobs
-    for i_file in all_inp:
-        # make sure path is relative
-        i_file = os.path.basename(i_file)
-        # strip off extension
-        jobname = os.path.splitext(i_file)[0]
-        res = run_abaqus(jobname, inp_dir, output_dir_abs)
-        results.append(res)
-
-    # now actually compute them
     # E_vals, S_vals
-    ret = dask.compute(results, num_workers=1)
-    ret = np.asarray(ret)
+    # ret = np.asarray(ret)
+    # print(ret)
 
 
 if __name__ == "__main__":
