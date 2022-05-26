@@ -3,10 +3,17 @@ inputs
 micros
 outputs
 sandbox
+pbs_out
 *.out
 
 # don't add generated files by default
 *.h5 
+
+# autogen pylauncher files
+node.*.edu
+pylauncher_tmp*.edu
+*.job
+queuestate
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

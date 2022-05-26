@@ -17,6 +17,11 @@ source $PBS_O_WORKDIR/sandbox/bin/activate
 
 cd $PBS_O_WORKDIR
 
+echo $PBS_JOBID
+echo $PBS_NODEFILE
+cat $PBS_NODEFILE
+
+
 pwd
 
 # run abaqus on the given inputs

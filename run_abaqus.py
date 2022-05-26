@@ -4,6 +4,7 @@ import os
 import subprocess
 import numpy as np
 import argparse
+import socket
 
 import h5py
 
@@ -69,7 +70,7 @@ def run_cmd(cmd_args):
     print(f"Return code was: {ret}")
     # if we failed, stop now
     if ret != 0:
-        raise RuntimeError("Abaqus failed with return code {ret}!")
+        raise RuntimeError(f"Abaqus failed with return code {ret}!")
 
     return ret
 
@@ -144,7 +145,7 @@ def main():
 
     # rip out extension to make later parsing easier
     jobname = os.path.splitext(os.path.basename(inp_name))[0]
-    print(f"Running inp {inp_name} in directory {inp_dir}, jobname is {jobname}!")
+    print(f"Running inp {inp_name} in directory {inp_dir}, jobname is {jobname}, host is {socket.gethostname()}!")
 
     # now actually run things through abaqus
     ret = run_abaqus(jobname, inp_dir, output_dir_abs, num_cores=args.num_cores)
