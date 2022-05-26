@@ -69,7 +69,6 @@ def lhs_to_micro(lhs_val):
     gx = np.int32(np.ceil(gx * lengthscale))
     gy = np.int32(np.ceil(gy * lengthscale))
     gz = np.int32(np.ceil(gz * lengthscale))
-    vf = np.float32(vf)  # convert to 32-bit float for storage purposes
 
     vf = (vf, 1 - vf)
 
@@ -141,7 +140,8 @@ def save_micros(micros, metadata, fname):
         "micros",
         data=micros,
         compression="gzip",
-        compression_opts=6,
+        compression_opts=4,
+        shuffle=True,
         dtype=int,
         chunks=(1, 2, ds, ds, ds),
     )

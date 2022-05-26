@@ -110,10 +110,10 @@ def parseAllDats(basename):
 
     # write stresses and strains, compressed
     output_f.create_dataset(
-        "stress", data=stresses, compression="gzip", compression_opts=6
+        "stress", data=stresses, compression="gzip", compression_opts=4, shuffle=True
     )
     output_f.create_dataset(
-        "strain", data=strains, compression="gzip", compression_opts=6
+        "strain", data=strains, compression="gzip", compression_opts=4, shuffle=True
     )
 
     output_f.close()

@@ -15,6 +15,45 @@ parser = argparse.ArgumentParser(description="Solve linear elasticity via MKS")
 group = parser.add_mutually_exclusive_group()
 group.add_argument("--split_micros", help="Split a given microstructure file")
 group.add_argument("--concat_files_dir", help="Directory full of files to concatenate")
+group.add_argument(
+    "--collect_fields",
+    help="Directory full of files to concatenate. Takes three args: <target_file> <strain_name>, <stress_name>",
+    nargs=3,
+)
+
+
+def collect_fields(fname, strain_file, stress_file):
+    # take two .npy files containing strain and stress, and repack them into one .h5 file containing both (and compressed appropriately)
+    output_f = h5py.File(fname, "w")
+
+    strain = np.load(strain_file)
+    stress = np.load(stress_file)
+
+    # one chunk for each instance
+    chunk_size = (1,) + strain[0].shape
+    print("chunk size is", chunk_size)
+    print(strain.dtype, strain.shape)
+    print(stress.dtype, stress.shape)
+
+    # now make the actual datasets
+    output_f.create_dataset(
+        "strain",
+        data=strain,
+        dtype=strain.dtype,
+        compression="gzip",
+        compression_opts=4,
+        shuffle=True,
+        chunks=chunk_size,
+    )
+    output_f.create_dataset(
+        "stress",
+        data=stress,
+        dtype=stress.dtype,
+        compression="gzip",
+        compression_opts=4,
+        shuffle=True,
+        chunks=chunk_size,
+    )
 
 
 def split_micros_file(micros_fname, samples_per_file=200):
@@ -56,6 +95,7 @@ def split_micros_file(micros_fname, samples_per_file=200):
                 data=data_key_slice,
                 compression=curr_dset.compression,
                 compression_opts=curr_dset.compression_opts,
+                shuffle=curr_dset.shuffle,
                 dtype=curr_dset.dtype,
             )
 
@@ -68,16 +108,27 @@ def split_micros_file(micros_fname, samples_per_file=200):
         output_f.close()
 
 
-def concat_files(basename, output_file):
+def concat_files(basename, output_file, entries_per_file=1):
     allDats = glob.glob(basename + "/*.h5")
     allDats = natsorted(allDats)
 
     print(f"{len(allDats)} files total!")
     print(basename + "*.h5")
 
+    if len(allDats) == 0:
+        print("Directory has zero valid data files! Exiting.")
+        exit(1)
+
+    # maximum number of entries in big file is
+    max_num_ents = entries_per_file * len(allDats)
+    print(f"Max number of entries in big file is {max_num_ents}")
+
     big_file = h5py.File(output_file, "w")
 
-    pf = max(1, (len(allDats) // 100))
+    pf = max(1, (len(allDats) // 50))
+
+    start_ind = 0
+    stop_ind = -1
 
     # loop over every file we have
     for ind, file_i in enumerate(allDats[:]):
@@ -90,45 +141,36 @@ def concat_files(basename, output_file):
             curr_dataset = data_i.get(key, None)
             # if we have that data, write it to the big file
             if curr_dataset is not None:
-                # does the big file already have that data?
+                # does the big file already have that field created?
                 if big_file.get(key) is None:
+                    # 1 instance is a chunk
                     chunk_size = (1,) + curr_dataset.shape[1:]
+
+                    # how many instances are we expecting
+                    newshape = (max_num_ents,) + curr_dataset.shape[1:]
                     # make new dataset for this
                     # allow resizing for now
                     big_file.create_dataset(
                         key,
-                        shape=curr_dataset.shape,
+                        shape=newshape,
                         dtype=curr_dataset.dtype,
                         compression="gzip",
-                        compression_opts=6,
-                        maxshape=(None,) + curr_dataset.shape[1:],
+                        compression_opts=4,
+                        shuffle=True,
                         chunks=chunk_size,
                     )
                     print(f"Making dataset {key}, chunk size is {big_file[key].chunks}")
                     big_file[key][:] = curr_dataset[:]
-                else:
-                    # if the big file already has a set, where should we start and stop writing?
-                    offset = big_file[key].shape[0]
-                    added_size = curr_dataset.shape[0]
-                    # make space for new data
-                    big_file[key].resize(offset + added_size, axis=0)
-                    # add new data
-                    big_file[key][offset:] = curr_dataset[:]
 
-            if ind % pf == 0:
-                print(f"Datset {key} new size: {big_file[key].shape}")
+                stop_ind = start_ind + curr_dataset.shape[0]
+                big_file[key][start_ind:stop_ind] = curr_dataset[:]
+
         data_i.close()
 
-    # the dataset was previously unlimited in size, so we should reset that now
+    # Check how close to max we got
     for key in big_file.keys():
         print(
-            f"Reformatting {key}, size is {big_file[key].shape}, chunks is {big_file[key].chunks}"
-        )
-        data = big_file[key][:]  # load in all data (expensive!)
-        chunks = big_file[key].chunks
-        del big_file[key]
-        big_file.create_dataset(
-            key, data=data, compression="gzip", compression_opts=6, chunks=chunks
+            f"Checking dataset {key}, size is {big_file[key].shape}, chunks is {big_file[key].chunks}, total entries added is {stop_ind}"
         )
 
 
@@ -148,8 +190,17 @@ def main():
     elif args.concat_files_dir:
         print(args.concat_files_dir)
         concat_dir = args.concat_files_dir
+        # remove any trailing slashes to make file naming work right
+        concat_dir = concat_dir.rstrip("/")
 
         concat_files(concat_dir, f"{concat_dir}_responses.h5")
+    elif args.collect_fields:
+        target_file = args.collect_fields[0]
+        strain_file = args.collect_fields[1]
+        stress_file = args.collect_fields[2]
+        collect_fields(target_file, strain_file, stress_file)
+    else:
+        raise NotImplementedError()
 
     # basename = sys.argv[1]
 

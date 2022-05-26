@@ -18,7 +18,7 @@ inp_dir = sys.argv[1]
 # remove trailing slashes
 inp_dir = inp_dir.rstrip("/")
 print(inp_dir)
-jobfile = f"run_abaqus_pylauncher_{JOB_ID}.job"
+jobfile = f"run_abaqus_pylauncher_{JOB_ID}.in"
 
 
 # get all inps
@@ -38,7 +38,7 @@ all_inps = natsorted(all_inps)
 
 print(len(all_inps))
 job_lines = "\n".join(
-    f"{HOST_HEADER}; python3 run_abaqus.py --inp_dir {inp_dir} --inp_name {inp_name} --num_cores {NUM_CORES}"
+    f"{HOST_HEADER}; NUM_ABAQUS_CORES={NUM_CORES} bash run_abaqus.sh {inp_name}"
     for inp_name in all_inps
 )
 

@@ -20,7 +20,7 @@ parser.add_argument(
 
 
 # TODO this is hacky
-# get current dir to get parser script
+# get absolute
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 
 PARSER_SCR = f"{SCRIPT_DIR}/parseODBToNumpy.py"
@@ -43,7 +43,8 @@ def write_results(fname, strain, stress):
         data=strain,
         dtype=strain.dtype,
         compression="gzip",
-        compression_opts=6,
+        compression_opts=4,
+        shuffle=True,
         chunks=chunk_size,
     )
     output_f.create_dataset(
@@ -51,7 +52,8 @@ def write_results(fname, strain, stress):
         data=stress,
         dtype=stress.dtype,
         compression="gzip",
-        compression_opts=6,
+        compression_opts=4,
+        shuffle=True,
         chunks=chunk_size,
     )
 
@@ -145,7 +147,9 @@ def main():
 
     # rip out extension to make later parsing easier
     jobname = os.path.splitext(os.path.basename(inp_name))[0]
-    print(f"Running inp {inp_name} in directory {inp_dir}, jobname is {jobname}, host is {socket.gethostname()}!")
+    print(
+        f"Running inp {inp_name} in directory {inp_dir}, jobname is {jobname}, host is {socket.gethostname()}!"
+    )
 
     # now actually run things through abaqus
     ret = run_abaqus(jobname, inp_dir, output_dir_abs, num_cores=args.num_cores)

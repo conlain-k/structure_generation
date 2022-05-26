@@ -12,8 +12,9 @@ pbs_out
 # autogen pylauncher files
 node.*.edu
 pylauncher_tmp*.edu
-*.job
 queuestate
+# all job files should be ignored
+*.in 
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

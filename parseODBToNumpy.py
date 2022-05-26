@@ -5,17 +5,22 @@ import sys
 
 
 # usage 'abaqus cae noGUI=avg_SE_RF.py -- <odb_file_path> <output_file_base>
-odb_file = sys.argv[-2]
-output_file_base = sys.argv[-1]
+odb_file = sys.argv[-1]
+# rip out the extension to get our file base
+output_file_base = os.path.splitext(odb_file)[0]
 
+# now open the odb
 odb = openOdb(odb_file)
 
+# get the very last frame of our tension test
 step = odb.steps["Step-1"]
 frame = step.frames[-1]
 
+# get field values
 E_vals = frame.fieldOutputs["E"]
 S_vals = frame.fieldOutputs["S"]
 
+# now sample each field value spatially
 # stack so that spatial dims come last
 E_arr = np.stack([Ev.data for Ev in E_vals.values], axis=-1)
 S_arr = np.stack([Sv.data for Sv in S_vals.values], axis=-1)
