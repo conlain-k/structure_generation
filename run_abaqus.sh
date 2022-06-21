@@ -24,8 +24,11 @@ jobname=$(basename $inp_file .inp)
 groupname=$(basename $jobdir)
 
 # assume the output dir is in this directory, make sure it exists
-output_dir=$(realpath outputs/${groupname})
+output_dir="outputs/${groupname}"
 mkdir -p $output_dir
+
+# now that we know it exists, get an absolute path
+output_dir=$(realpath $output_dir)
 
 echo outputdir, $output_dir
 
@@ -57,4 +60,9 @@ eval $collect_cmd
 echo Result was $? # how did we do?
 
 # and now we're done! Just need to collect data 
-
+# check if the metadata file was copied yet
+if [ ! -f "${output_dir}/metadata.h5" ]
+    # NOTE: this is hacky
+    # now copy in the metadata
+    cp "metadata.h5" "${output_dir}/metadata.h5"
+fi

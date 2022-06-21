@@ -46,6 +46,7 @@ parser.add_argument(
 allow_skip = False
 
 stiffnessLow = 120
+poissonRatio = 0.3
 
 INP_BASEDIR = "inputs"
 
@@ -58,7 +59,7 @@ mat_base_str = """**** ---------------------------------------------------------
 1.,
 *Material, name=material-1
 *Elastic,type=isotropic
-{}, 0.3
+{stiffnessLow}, {poissonRatio}
 ** Solid (element 2 = Set-hard)
 **
 *Solid Section, elset=Set-hard, material=material-2
@@ -66,7 +67,7 @@ mat_base_str = """**** ---------------------------------------------------------
 **
 *Material, name=material-2
 *Elastic,type=isotropic
-{}, 0.3
+{stiffnessHigh}, poissonRatio
 **
 """
 
@@ -74,7 +75,7 @@ mat_base_str = """**** ---------------------------------------------------------
 def make_matstr(cr):
     stiffnessHigh = cr * stiffnessLow
 
-    return mat_base_str.format(stiffnessLow, stiffnessHigh)
+    return mat_base_str.format(stiffnessLow=stiffnessLow, stiffnessHigh=stiffnessHigh, poissonRatio=poissonRatio)
 
 
 def make_elsetstr(micro):
@@ -154,7 +155,7 @@ def main():
     bc_component = args.bc_component
     contrast_ratio = args.contrast_ratio
     applied_strain = float(args.applied_strain)
-    voxel_size = int(args.ds)
+    voxel_count = int(args.ds)
 
     """Convert a set of microstructures into a directory full of inp files"""
     micro_data = h5py.File(micro_file, "r")
@@ -188,7 +189,7 @@ def main():
     # now generate an abaqus mesh
     print("Generating abaqus mesh!")
     mesh_main_file = generate_abaqus_mesh(
-        ds=voxel_size,
+        ds=voxel_count,
         applied_strain=applied_strain,
         bc_component=bc_component,
         save_dir=inps_dir,
@@ -202,6 +203,16 @@ def main():
         inp_name = f"{inps_dir}/{i:05}.inp"
         print(f"Writing out {inp_name}")
         write_inp(m, inp_name, matstr=matstr, mesh_main_file=mesh_main_file)
+
+    print('Writing metadata file')
+    # now write a metadata file saying what conditions we applied
+    f = h5py.File(f'{inps_dir}/metadata.h5', 'w')
+    # now write the material properties assigned -- store everything in attrs because it's small	
+    f.attrs['stiffnesses'] = [stiffnessLow, contrast_ratio * stiffnessLow]
+    f.attrs['poisson_ratios'] = [poissonRatio, poissonRatio]
+    f.attrs['bc_component'] = [bc_component]
+    f.attrs['ds'] = [voxel_count] 
+    f.attrs['applied_strain'] = [applied_strain]
 
 
 if __name__ == "__main__":

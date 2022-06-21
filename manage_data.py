@@ -21,7 +21,6 @@ group.add_argument(
     nargs=3,
 )
 
-
 def collect_fields(fname, strain_file, stress_file):
     # take two .npy files containing strain and stress, and repack them into one .h5 file containing both (and compressed appropriately)
     output_f = h5py.File(fname, "w")

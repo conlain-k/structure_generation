@@ -1,9 +1,13 @@
+wheel
+
+# generation codes needed
 numpy 
-dask
-dask[dataframe]
 pymks
-distributed
 natsort
 pyDOE
 h5py
+
+# required for pylauncher to work right on phoenix
+cffi
+paramiko
 

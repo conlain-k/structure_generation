@@ -1,9 +1,9 @@
 # common directories we work with
-inputs
-micros
-outputs
-sandbox
-pbs_out
+inputs/
+micros/
+outputs/
+sandbox/
+pbs_out/
 *.out
 
 # don't add generated files by default
@@ -13,8 +13,10 @@ pbs_out
 node.*.edu
 pylauncher_tmp*.edu
 queuestate
+
 # all job files should be ignored
-*.in 
+*.edu.in 
+*head.in
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
