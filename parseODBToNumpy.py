@@ -4,7 +4,6 @@ import numpy as np
 import sys
 
 
-# usage 'abaqus cae noGUI=avg_SE_RF.py -- <odb_file_path> <output_file_base>
 odb_file = sys.argv[-1]
 # rip out the extension to get our file base
 output_file_base = os.path.splitext(odb_file)[0]

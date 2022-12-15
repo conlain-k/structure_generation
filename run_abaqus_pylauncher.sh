@@ -24,6 +24,9 @@ echo $SLURM_JOB_NODELIST
 
 pwd
 
+# first clean the inp directory
+bash clean_dir.sh ${inp_dir}
+
 # run abaqus on the given inputs
 cmd="python3 launch_gen.py ${inp_dir}"
 echo $cmd; $cmd

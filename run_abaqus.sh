@@ -1,4 +1,5 @@
 #!/bin/bash
+# usage: bash run_abaqus.sh <inp_file>
 
 # exit if any command below fails
 set -e
@@ -28,6 +29,8 @@ jobname=$(basename $inp_file .inp)
 # what name is this group of files?
 groupname=$(basename $jobdir)
 
+  
+
 # assume the output dir is in this directory, make sure it exists
 output_dir="outputs/${groupname}"
 mkdir -p $output_dir
@@ -35,7 +38,18 @@ mkdir -p $output_dir
 # now that we know it exists, get an absolute path
 output_dir=$(realpath $output_dir)
 
+# if our results file already exists, then don't re-run generation 
+if [[ -f "${output_dir}/${jobname}.h5" ]]; then
+  echo Results file already exists, skipping this file!
+  exit 0
+fi
+
+
+
+
 echo outputdir, $output_dir
+# if we haven't exited, then we still need to run abaqus (or we crashed already somehow!)
+# next we clean the job directory
 
 # go to the job directory (but keep our current location in a stack)
 pushd $jobdir

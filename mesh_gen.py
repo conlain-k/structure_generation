@@ -40,7 +40,7 @@ def generate_abaqus_mesh(ds, applied_strain, bc_component, save_dir=None):
     nodeset_file = f"{ds}_nodeset.inp"
     bc_nset_file = f"{ds}_bc_nset.inp"
     step_file = f"{ds}_step.inp"
-    outputs_file = f"{ds}_outputs.inp"
+    # outputs_file = f"{ds}_outputs.inp"
     main_file = f"{ds}_mesh_main.inp"
 
     # comments go here...
@@ -349,7 +349,7 @@ def generate_abaqus_mesh(ds, applied_strain, bc_component, save_dir=None):
         f.write(f"c5,1,1,{disps[4]}\n")  # (x-z) shear
         f.write("*Boundary\n")
         f.write(f"c2,2,2,{disps[3]}\n")  # (x-y) shear
-        f.write(f"c4,2,2,{disps[1]}\n")  # (y-y)  tension
+        f.write(f"c4,2,2,{disps[1]}\n")  # (y-y) tension
         f.write("*Boundary\n")
         f.write(f"c5,3,3,{disps[2]}\n")  # (z-z) tension
         f.write(f"c4,3,3,{disps[5]}\n")  # (y-z) shear
@@ -367,11 +367,11 @@ def generate_abaqus_mesh(ds, applied_strain, bc_component, save_dir=None):
         f.write("S\n")
         f.write("E\n")
         f.write("**\n")
-#        f.write("*output, history, frequency=0\n")
-#        f.write("** \n")
-        #f.write("*el print, summary=yes, totals=yes, position=centroidal\n")
-        #f.write("S\n")
-        #f.write("E\n")
+        #        f.write("*output, history, frequency=0\n")
+        #        f.write("** \n")
+        # f.write("*el print, summary=yes, totals=yes, position=centroidal\n")
+        # f.write("S\n")
+        # f.write("E\n")
         f.write("**\n")
         f.write("*End Step\n")
     # ------------- Main File -------------#
