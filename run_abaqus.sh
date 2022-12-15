@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# exit if any command below fails
+set -e
+
+HEADER="\n-------------------------------------------------\n"
+
 # make sure abaqus is actually loaded
 module load abaqus 
 
@@ -35,6 +40,8 @@ echo outputdir, $output_dir
 # go to the job directory (but keep our current location in a stack)
 pushd $jobdir
 
+echo $HEADER
+
 # first run through abaqus
 abaqus_cmd="abaqus job=${jobname}.inp int double interactive cpus=${NUM_ABAQUS_CORES} ask_delete=off"
 
@@ -42,12 +49,16 @@ echo $abaqus_cmd
 eval $abaqus_cmd
 echo Result was $? # how did we do?
 
+echo $HEADER
+
 # now parse with abaqus
 parse_cmd="abaqus python ${ODB_PARSER_SCRIPT} -- ${jobname}.odb"
 
 echo $parse_cmd
 eval $parse_cmd
 echo Result was $? # how did we do?
+
+echo $HEADER
 
 # remove temp files now that we are parsed
 rm -rf ${jobname}.msg ${jobname}.sim ${jobname}.com ${jobname}.prt ${jobname}.odb ${jobname}.sta ${jobname}.dat ${jobname}.lck
@@ -61,8 +72,13 @@ echo Result was $? # how did we do?
 
 # and now we're done! Just need to collect data 
 # check if the metadata file was copied yet
-if [ ! -f "${output_dir}/metadata.h5" ]
+#if [[ ! -f "${output_dir}/metadata.h5" ]]; then
     # NOTE: this is hacky
     # now copy in the metadata
-    cp "metadata.h5" "${output_dir}/metadata.h5"
-fi
+#    cp "metadata.h5" "${output_dir}/metadata.h5"
+#fi
+
+
+echo $HEADER
+
+echo Script successful!

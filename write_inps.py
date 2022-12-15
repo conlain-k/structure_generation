@@ -67,7 +67,7 @@ mat_base_str = """**** ---------------------------------------------------------
 **
 *Material, name=material-2
 *Elastic,type=isotropic
-{stiffnessHigh}, poissonRatio
+{stiffnessHigh}, {poissonRatio}
 **
 """
 
@@ -195,13 +195,19 @@ def main():
         save_dir=inps_dir,
     )
 
+    print("Mesh Generated")
+
     # make material params string
     matstr = make_matstr(float(contrast_ratio))
 
-    for i, m in enumerate(micros[:]):
+    # how often to print status
+    pf = len(micros) // 100
+
+    for i, m in enumerate(micros):
         # where to write inp file?
         inp_name = f"{inps_dir}/{i:05}.inp"
-        print(f"Writing out {inp_name}")
+        if i % pf == 0:
+            print(f"Writing out {inp_name} of {len(micros)}")
         write_inp(m, inp_name, matstr=matstr, mesh_main_file=mesh_main_file)
 
     print('Writing metadata file')
